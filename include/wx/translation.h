@@ -338,15 +338,42 @@ inline const wxString& wxGetTranslation(const char *str1,
     #define wxTRANS_INPUT_STR(s) s
 #endif // wxNO_IMPLICIT_WXSTRING_ENCODING
 
-namespace wxTransImplStrict
-{
+#ifndef wxNO_REQUIRE_LITERAL_MSGIDS
 
 // Wrapper functions that only accept string literals as arguments,
-// not variables, not char* pointers.
+// not variables, not char* pointers, and define the fall backs only in
+// order to point out to the comment below:
+
+/*
+    LITERALS-MSGID-COMMENT:
+
+    If you get a compile error when using any of the translation functions or
+    macros, i.e. _(), wxPLURAL() etc, it means that you're passing something
+    other than literal strings, i.e. just simple "whatever", to wx translation
+    functions. This most likely indicates a bug in your program which is now
+    detected when it was silently ignored before and should be fixed by
+    changing the code to use string literals.
+
+    However if you can't do this, for some reason, you may choose to predefine
+    wxNO_REQUIRE_LITERAL_MSGIDS which disables these checks. Please note that
+    this is *NOT* recommended, as the problematic strings probably won't be
+    translated, because they won't have been extracted by xgettext in the first
+    place and the right thing to do remains to fix the code instead.
+
+    End of LITERALS-MSGID-COMMENT
+*/
+
 template<size_t N>
 const wxString& wxUnderscoreWrapper(const char (&msg)[N])
 {
     return wxGetTranslation(wxTRANS_INPUT_STR(msg));
+}
+
+template <typename T>
+wxString wxUnderscoreWrapper(T)
+{
+    static_assert(!sizeof(T), "Please read LITERALS-MSGID-COMMENT above.");
+    return {};
 }
 
 template<size_t M, size_t N>
@@ -358,12 +385,26 @@ const wxString& wxPluralWrapper(const char (&msg)[M],
                             count);
 }
 
+template <typename T, typename U>
+wxString wxPluralWrapper(T, U, int)
+{
+    static_assert(!sizeof(T), "Please read LITERALS-MSGID-COMMENT above.");
+    return {};
+}
+
 template<size_t M, size_t N>
 const wxString& wxGettextInContextWrapper(const char (&ctx)[M],
                                           const char (&msg)[N])
 {
     return wxGetTranslation(wxTRANS_INPUT_STR(msg), wxString(),
                             wxTRANS_INPUT_STR(ctx));
+}
+
+template <typename T, typename U>
+wxString wxGettextInContextWrapper(T, U)
+{
+    static_assert(!sizeof(T), "Please read LITERALS-MSGID-COMMENT above.");
+    return {};
 }
 
 template<size_t L, size_t M, size_t N>
@@ -376,10 +417,14 @@ const wxString& wxGettextInContextPluralWrapper(const char (&ctx)[L],
                             count, wxString(), wxTRANS_INPUT_STR(ctx));
 }
 
-} // namespace wxTransImplStrict
-
-namespace wxTransImplCompatible
+template <typename T, typename U, typename V>
+wxString wxGettextInContextPluralWrapper(T, U, V, int)
 {
+    static_assert(!sizeof(T), "Please read LITERALS-MSGID-COMMENT above.");
+    return {};
+}
+
+#else // wxNO_REQUIRE_LITERAL_MSGIDS
 
 // Wrapper functions that accept both string literals and variables
 // as arguments.
@@ -412,13 +457,7 @@ inline const wxString& wxGettextInContextPluralWrapper(const char *ctx,
                             count, wxString(), wxTRANS_INPUT_STR(ctx));
 }
 
-} // namespace wxTransImplCompatible
-
-#ifdef wxNO_REQUIRE_LITERAL_MSGIDS
-using namespace wxTransImplCompatible;
-#else
-using namespace wxTransImplStrict;
-#endif
+#endif // wxNO_REQUIRE_LITERAL_MSGIDS
 
 #else // !wxUSE_INTL
 
