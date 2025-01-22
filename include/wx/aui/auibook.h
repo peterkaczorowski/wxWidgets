@@ -49,6 +49,7 @@ enum wxAuiNotebookOption
     wxAUI_NB_CLOSE_ON_ACTIVE_TAB = 1 << 11,
     wxAUI_NB_CLOSE_ON_ALL_TABS   = 1 << 12,
     wxAUI_NB_MIDDLE_CLICK_CLOSE  = 1 << 13,
+    wxAUI_NB_MULTILINE           = 1 << 14,
 
     wxAUI_NB_DEFAULT_STYLE = wxAUI_NB_TOP |
                              wxAUI_NB_TAB_SPLIT |
@@ -139,7 +140,8 @@ public:
     wxAuiTabArt* GetArtProvider() const;
 
     void SetFlags(unsigned int flags);
-    unsigned int GetFlags() const;
+    unsigned int GetFlags() const { return m_flags; }
+    bool IsFlagSet(unsigned int flag) const { return (m_flags & flag) != 0; }
 
     bool AddPage(const wxAuiNotebookPage& info);
     bool InsertPage(const wxAuiNotebookPage& info, size_t idx);
@@ -165,6 +167,7 @@ public:
     void SetActiveColour(const wxColour& colour);
     void DoShowHide();
     void SetRect(const wxRect& rect, wxWindow* wnd = nullptr);
+    void SetRowHeight(int rowHeight);
 
     void RemoveButton(int id);
     void AddButton(int id,
@@ -233,8 +236,26 @@ protected:
     size_t m_tabOffset;
     unsigned int m_flags;
 
+    int GetCloseButtonState(const wxAuiNotebookPage& page) const
+    {
+        return GetCloseButtonState(page.active);
+    }
+
+    // Return wxAUI_BUTTON_STATE_{NORMAL,HIDDEN} corresponding to the current
+    // flags and the state of the page.
+    int GetCloseButtonState(bool isPageActive) const;
+
+    // Return the width that can be used for the tabs, i.e. without the space
+    // reserved for the buttons.
+    int GetAvailableForTabs(const wxRect& rect, wxReadOnlyDC& dc, wxWindow* wnd);
+
 private:
-    int GetCloseButtonState(const wxAuiNotebookPage& page) const;
+    // Render the buttons: part of Render(), returns the extent of the buttons
+    // on the left and right side.
+    void RenderButtons(wxDC& dc, wxWindow* wnd,
+                       int& left_buttons_width, int& right_buttons_width);
+
+    int m_tabRowHeight;
 };
 
 
@@ -259,6 +280,10 @@ public:
     // Internal helpers.
     void DoShowTab(int idx);
     void DoUpdateActive();
+
+    // Internal function taking the total tab frame area and setting the size
+    // of the window to its sub-rectangle corresponding to tabs orientation.
+    void DoApplyRect(const wxRect& rect, int tabCtrlHeight);
 
 protected:
     // choose the default border for this window
